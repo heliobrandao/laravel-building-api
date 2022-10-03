@@ -32,14 +32,24 @@ class SeriesController extends Controller
         return view('series.create');
     }
 
+    //desafio imagem padrão quando não definida imagem
     public function store(SeriesFormRequest $request)
     {
+        if ($request->hasFile('cover')) {
+            $coverPath = $request->file('cover')->store('series_cover', 'public');
+            $request->coverPath = $coverPath;
+        } else {
+            $request->coverPath = 'series_cover/default-image.jpg';
+        }
+
         $serie = $this->repository->add($request);
+
         \App\Events\SeriesCreated::dispatch(
             $serie->nome,
             $serie->id,
             $request->seasonsQty,
             $request->episodesPerSeason,
+            $request->coverPath,
         );
 
         return to_route('series.index')
@@ -49,6 +59,7 @@ class SeriesController extends Controller
     public function destroy(Series $series)
     {
         $series->delete();
+        \App\Jobs\DeleteSeriesCover::dispatch($series->cover); // Linha adicionada
 
         return to_route('series.index')
             ->with('mensagem.sucesso', "Série '{$series->nome}' removida com sucesso");
